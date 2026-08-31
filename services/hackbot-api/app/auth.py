@@ -79,19 +79,56 @@ async def require_slack_signature(
         )
 
 
-async def require_api_key(x_api_key: str | None = Header(default=None)) -> None:
-    if not settings.external_api_key:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="API key not configured",
-        )
-    if x_api_key is None or not hmac.compare_digest(
-        x_api_key, settings.external_api_key
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or missing X-API-Key",
-        )
+async def require_api_key(
+    x_api_key: str | None = Header(default=None),
+    authorization: str | None = Header(default=None),
+) -> None:
+    """Accept either API key (X-API-Key) or service account token (Bearer)."""
+    if x_api_key is not None:
+        if not settings.external_api_key or not hmac.compare_digest(
+            x_api_key, settings.external_api_key
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid X-API-Key",
+            )
+        return
+
+    if authorization is not None and authorization.startswith("Bearer "):
+        if not settings.api_audience or not settings.allowed_service_accounts:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Service account auth not configured",
+            )
+        token = authorization.removeprefix("Bearer ")
+        try:
+            claims = id_token.verify_oauth2_token(
+                token, google_requests.Request(), audience=settings.api_audience
+            )
+        except ValueError:
+            log.warning("Rejected request with invalid OIDC token")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
+            ) from None
+        except Exception as e:
+            log.error("Token verification error: %s", e)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Token verification unavailable",
+            ) from None
+
+        email = claims.get("email")
+        if email not in settings.allowed_service_accounts:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Service account not authorized",
+            )
+        return
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Missing X-API-Key or Authorization header",
+    )
 
 
 async def require_push_auth(authorization: str | None = Header(default=None)) -> None:
