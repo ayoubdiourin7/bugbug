@@ -1,0 +1,12 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --tag
+      - ${_IMAGE}
+      - --build-arg
+      - NEXT_PUBLIC_SENTRY_DSN=${_SENTRY_DSN}
+      - .
+
+images:
+  - ${_IMAGE}

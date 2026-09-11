@@ -23,6 +23,7 @@
 #   PROJECT=my-proj REGION=us-central1 \
 #   HACKBOT_API_URL=https://hackbot-api-xxxx.run.app \
 #   GOOGLE_CLIENT_ID=xxx.apps.googleusercontent.com \
+#   SENTRY_DSN=https://... \
 #   ./deploy.sh
 #
 # After the FIRST deploy, copy the printed service URL into BETTER_AUTH_URL
@@ -35,6 +36,7 @@ SERVICE="${SERVICE:-hackbot-ui}"
 REPO="${REPO:-hackbot}"
 HACKBOT_API_URL="${HACKBOT_API_URL:?set HACKBOT_API_URL to the hackbot-api base URL}"
 GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID:?set GOOGLE_CLIENT_ID}"
+SENTRY_DSN="${SENTRY_DSN:?set SENTRY_DSN to the Hackbot UI Sentry DSN}"
 # BETTER_AUTH_URL is optional on the first deploy; set it on the second pass.
 BETTER_AUTH_URL="${BETTER_AUTH_URL:-}"
 
@@ -70,7 +72,9 @@ gcloud artifacts repositories describe "${REPO}" --location="${REGION}" >/dev/nu
     --description="Hackbot container images"
 
 echo "==> Building & pushing image with Cloud Build: ${IMAGE}"
-gcloud builds submit "${SCRIPT_DIR}" --tag "${IMAGE}"
+gcloud builds submit "${SCRIPT_DIR}" \
+  --config "${SCRIPT_DIR}/cloudbuild.yaml" \
+  --substitutions "_IMAGE=${IMAGE},_SENTRY_DSN=${SENTRY_DSN}"
 
 echo "==> Deploying to Cloud Run"
 ENV_VARS="HACKBOT_API_URL=${HACKBOT_API_URL},GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}"
