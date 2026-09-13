@@ -5,7 +5,7 @@ steps:
       - --tag
       - ${_IMAGE}
       - --build-arg
-      - NEXT_PUBLIC_SENTRY_DSN=${_SENTRY_DSN}
+      - NEXT_PUBLIC_SENTRY_DSN=${_NEXT_PUBLIC_SENTRY_DSN}
       - .
 
 images:
