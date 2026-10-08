@@ -30,9 +30,11 @@ FROM base AS agent
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        ffmpeg \
-        fluxbox \
-        xvfb \
+    # Firefox runtime deps.
+    libgtk-3-0 libasound2t64 \
+    ffmpeg \
+    fluxbox \
+    xvfb \
     && rm -rf /var/lib/apt/lists/*
 
 # hackbot.toml lives at the agent root (not inside the package), so copy it into
